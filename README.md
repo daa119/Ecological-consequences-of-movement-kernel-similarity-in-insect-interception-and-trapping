@@ -1,0 +1,2 @@
+# Ecological-consequences-of-movement-kernel-similarity-in-insect-interception-and-trapping
+MATLAB simulations comparing thin- and heavy-tailed movement kernels linked by a common survival probability and optimal similarity. Applications include 1D trap-crop removal, 2D pitfall-trap capture, and 3D flight interception, revealing how attraction, movement tails, boundaries, and trap geometry shape ecological outcomes.
