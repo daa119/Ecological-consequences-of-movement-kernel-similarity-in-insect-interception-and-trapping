@@ -1,4 +1,4 @@
-# Ecological consequences of movement kernel similarity in insect interception and trapping
+# Mathematically similar movement kernels yield contrasting ecological outcomes in insect trapping
 
 **MATLAB simulation code accompanying the research manuscript by Danish A. Ahmed**
 
