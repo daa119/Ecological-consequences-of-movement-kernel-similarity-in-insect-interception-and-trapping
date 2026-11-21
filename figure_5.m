@@ -1,13 +1,28 @@
+% Mean daily cumulative pitfall capture over 30 days for a
+% grid and a transect. Each of 10 realisations uses the same starting draw
+% for both layouts before trap-specific exclusions. Each capture percentage
+% uses its own post-exclusion population. Shading shows pointwise 95%
+% Student t intervals across the realisations, bounded by 0% and 100%.
+%
+% Gaussian displacements have independent components and Rayleigh
+% step lengths. The long-distance case uses folded-Cauchy step lengths
+% and uniform headings. Proposals ending outside the circular domain are
+% redrawn. An individual is captured if any of the 100 sampled locations
+% on the accepted segment lies in a trap, including a check at the endpoint.
+% Short intersections between sampled locations may go undetected.
+
 clc; clear; close all;
-rng(25);
+rng(25);  % Fixed seed for this figure.
+
+save_figure = true;
 
 % -------------------------------
 % Parameters
 N = 10^2;
-num_runs = 10;
+num_runs = 10;           % use at least two runs for the confidence bands
 R = 40;                  % radius of circular domain (m)
 max_steps = 4320;
-sub_steps = 100;
+sub_steps = 100;         % equally spaced checks per accepted segment
 trap_radius = 0.05;      % pitfall trap radius (m)
 
 % -------------------------------
@@ -29,7 +44,7 @@ fprintf('Mean step length = %.3f m\n', mean_step);
 fprintf('Gaussian scale sigma = %.3f m\n', sigma);
 
 % -------------------------------
-% p-values and derived gamma using L^2-distance matching
+% Match tail probabilities. The p = 0.658 case minimises the L^2 distance.
 
 p1 = 0.1;
 zeta1 = sqrt(-2*log(p1))*cot((pi/2)*(1-p1));
@@ -104,6 +119,7 @@ for run = 1:num_runs
 % INITIAL POSITIONS
 % ===========================================================
 
+% Square-root radius gives uniform density per unit area.
 theta = 2*pi*rand(N,1);
 radii = R*sqrt(rand(N,1));
 
@@ -183,7 +199,7 @@ for step = 1:max_steps
     end
 
     % --------------------------------
-    % Check trap intersections
+    % Check the accepted segment for trap contact at the sampled points.
     still_alive = ...
         true(size(positions_gauss_grid,1),1);
 
@@ -286,7 +302,7 @@ for idx = 1:length(gamma_values)
         end
 
         % --------------------------------
-        % Check trap intersections
+        % Check the accepted segment for trap contact at the sampled points.
         still_alive = ...
             true(size(positions_levy,1),1);
 
@@ -399,7 +415,7 @@ for step = 1:max_steps
     end
 
     % --------------------------------
-    % Check trap intersections
+    % Check the accepted segment for trap contact at the sampled points.
     still_alive = ...
         true(size(positions_gauss_transect,1),1);
 
@@ -502,7 +518,7 @@ for idx = 1:length(gamma_values)
         end
 
         % --------------------------------
-        % Check trap intersections
+        % Check the accepted segment for trap contact at the sampled points.
         still_alive = ...
             true(size(positions_levy,1),1);
 
@@ -641,8 +657,11 @@ fprintf('Transect, p = 0.9:        %.1f%%\n', ...
 % POINTWISE 95% CONFIDENCE INTERVALS ACROSS SIMULATION RUNS
 % ===========================================================
 
-% 95% t critical value for 10 independent runs (df = 9)
-t95 = 2.262157;
+% Two-sided 95% Student t critical value for the number of runs.
+% Invert the beta representation of the Student t tail in base MATLAB.
+df = num_runs - 1;
+beta_quantile = betaincinv(0.05,df/2,0.5);
+t95 = sqrt(df * (1/beta_quantile - 1));
 
 se_gauss_grid = std(trap_counts_gauss_grid_runs,0,2)/sqrt(num_runs);
 se_levy_grid = std(trap_counts_levy_grid_runs,0,3)/sqrt(num_runs);
@@ -670,7 +689,7 @@ CI_high_grid(CI_high_grid > 100) = 100;
 CI_low_transect(CI_low_transect < 0) = 0;
 CI_high_transect(CI_high_transect > 100) = 100;
 
-figure('Color','w', ...
+fig = figure('Color','w', ...
        'Position',[100 100 1200 500]);
 
 %% ---------------- PANEL (a): REGULAR GRID ----------------
@@ -846,3 +865,25 @@ set(gca, ...
     'TickDir','out');
 
 hold off;
+
+%% Export the PNG with a small white margin around all plotted content
+if save_figure
+    png_file = fullfile(fileparts(mfilename('fullpath')), 'figure_5.png');
+    set(fig, 'PaperPositionMode', 'auto');
+    dpi = 300;
+    drawnow;
+    print(fig, png_file, '-dpng', sprintf('-r%d',dpi));
+
+    rgb = imread(png_file);
+    content = any(rgb < 255, 3);
+    rows = find(any(content, 2));
+    cols = find(any(content, 1));
+    if ~isempty(rows) && ~isempty(cols)
+        pad = 12;
+        r = max(1, rows(1)-pad):min(size(rgb, 1), rows(end)+pad);
+        c = max(1, cols(1)-pad):min(size(rgb, 2), cols(end)+pad);
+        pixels_per_metre = round(dpi / 0.0254);
+        imwrite(rgb(r,c,:), png_file, 'png', ...
+            'ResolutionUnit','meter','XResolution',pixels_per_metre);
+    end
+end

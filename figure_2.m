@@ -1,5 +1,20 @@
+% Population dynamics over 20 days for Gaussian movement and four
+% linked Cauchy cases. At each time, percentages of the initial population
+% partition into cash crop, trap crop, outside the field and removed.
+%
+% The starting location determines the movement rule. Cash-crop insects
+% are biased toward the trap crop. Within the trap crop both cases use
+% the same reduced-scale, unbiased Gaussian walk. Outside the field
+% insects use their original kernel at full scale, with unbiased headings
+% and possible re-entry. A cash-to-trap crossing triggers an entry-removal
+% trial even if the step crosses the entire trap strip. Surviving endpoints
+% inside the trap crop receive a separate within-trap removal trial.
+
 clc; clear; close all;
-rng(1);
+rng(1);  % Reproducible random sequence within each figure.
+
+save_figure = true;
+
 %% ==========================================================
 % PARAMETERS
 % ===========================================================
@@ -517,7 +532,7 @@ fprintf('\n');
 % PLOT
 % ===========================================================
 
-figure('Color','w', ...
+fig = figure('Color','w', ...
        'Position',[100 100 1000 800]);
 
 %% ==========================================================
@@ -810,3 +825,25 @@ set(gca, ...
     'TickDir','out');
 
 hold off;
+
+%% Export the PNG with a small white margin around all plotted content
+if save_figure
+    png_file = fullfile(fileparts(mfilename('fullpath')), 'figure_2.png');
+    set(fig, 'PaperPositionMode', 'auto');
+    dpi = 300;
+    drawnow;
+    print(fig, png_file, '-dpng', sprintf('-r%d',dpi));
+
+    rgb = imread(png_file);
+    content = any(rgb < 255, 3);
+    rows = find(any(content, 2));
+    cols = find(any(content, 1));
+    if ~isempty(rows) && ~isempty(cols)
+        pad = 12;
+        r = max(1, rows(1)-pad):min(size(rgb, 1), rows(end)+pad);
+        c = max(1, cols(1)-pad):min(size(rgb, 2), cols(end)+pad);
+        pixels_per_metre = round(dpi / 0.0254);
+        imwrite(rgb(r,c,:), png_file, 'png', ...
+            'ResolutionUnit','meter','XResolution',pixels_per_metre);
+    end
+end

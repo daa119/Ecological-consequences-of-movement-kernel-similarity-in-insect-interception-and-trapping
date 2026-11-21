@@ -1,11 +1,24 @@
+% Surviving individuals at days 0, 30 and 60 for a pitfall grid
+% and a transect. Both layouts share the same area-uniform initial draw
+% before excluding individuals inside traps. Red rings mark trap centres.
+%
+% Gaussian displacements have independent components and Rayleigh
+% step lengths. The long-distance case uses folded-Cauchy step lengths
+% and uniform headings. Proposals ending outside the circular domain are
+% redrawn. An individual is captured if any of the 100 sampled locations
+% on the accepted segment lies in a trap, including a check at the endpoint.
+% Short intersections between sampled locations may go undetected.
+
 clc; clear; close all;
-rng(1);
+rng(1);  % Fixed seed for this figure.
+
+save_figure = true;
 % -------------------------------
 % Parameters
 N = 10^2;
 R = 40;                  % radius of circular domain (m)
 max_steps = 8640;
-sub_steps = 100;
+sub_steps = 100;         % equally spaced checks per accepted segment
 trap_radius = 0.05;      % pitfall trap radius (m)
 
 % -------------------------------
@@ -73,6 +86,7 @@ trap_centers_transect = ...
 % INITIAL POSITIONS
 % ===========================================================
 
+% Square-root radius gives uniform density per unit area.
 theta = 2*pi*rand(N,1);
 radii = R*sqrt(rand(N,1));
 
@@ -171,7 +185,7 @@ for step = 1:max_steps
     end
 
     % --------------------------------
-    % Check trap intersections
+    % Check the accepted segment for trap contact at the sampled points.
     still_alive = ...
         true(size(positions_srw_grid,1),1);
 
@@ -274,7 +288,7 @@ for step = 1:max_steps
     end
 
     % --------------------------------
-    % Check trap intersections
+    % Check the accepted segment for trap contact at the sampled points.
     still_alive = ...
         true(size(positions_lw_grid,1),1);
 
@@ -359,7 +373,7 @@ for step = 1:max_steps
     end
 
     % --------------------------------
-    % Check trap intersections
+    % Check the accepted segment for trap contact at the sampled points.
     still_alive = ...
         true(size(positions_srw_transect,1),1);
 
@@ -465,7 +479,7 @@ for step = 1:max_steps
     end
 
     % --------------------------------
-    % Check trap intersections
+    % Check the accepted segment for trap contact at the sampled points.
     still_alive = ...
         true(size(positions_lw_transect,1),1);
 
@@ -511,8 +525,12 @@ end
 % PLOT: 2 x 3 POPULATION DISTRIBUTIONS
 % ===========================================================
 
-figure('Color','w', ...
-       'Position',[100 100 1450 760]);
+fig = figure('Color','w', ...
+       'Position',[100 100 1570 760]);
+
+% Preserve the original 1450-pixel-wide panel region and reserve the
+% added width for the legend. Scale horizontal positions only.
+panel_scale = 1450/1570;
 
 %% ----------------------------------------------------------
 % TOP ROW: REGULAR GRID
@@ -521,6 +539,10 @@ figure('Color','w', ...
 for k = 1:3
 
     subplot(2,3,k);
+    ax = gca;
+    panel_position = get(ax,'Position');
+    panel_position([1 3]) = panel_scale * panel_position([1 3]);
+    set(ax,'Position',panel_position);
     hold on;
 
     % Circular confined boundary
@@ -601,15 +623,9 @@ for k = 1:3
             'FontSize',14, ...
             'Box','off');
 
-        % Restore subplot to its original size
-        set(gca,'Position',axPos);
-
-        % Position legend manually outside the top-right panel
-        set(lgd,'Units','normalized');
-        lgdPos = get(lgd,'Position');
-
-        set(lgd,'Position', ...
-            [0.79 0.76 lgdPos(3) lgdPos(4)]);
+        % Keep this axes handle so the legend can be placed after layout.
+        legend_axes = ax;
+        set(ax,'Position',axPos);
 
     end
 
@@ -652,6 +668,10 @@ end
 for k = 1:3
 
     subplot(2,3,k+3);
+    ax = gca;
+    panel_position = get(ax,'Position');
+    panel_position([1 3]) = panel_scale * panel_position([1 3]);
+    set(ax,'Position',panel_position);
     hold on;
 
     % Circular confined boundary
@@ -738,4 +758,39 @@ for k = 1:3
 
     hold off;
 
+end
+
+%% Place the legend beside the upper-right plot box
+% Equal axis scaling can leave space on either side of the square plot.
+% Anchor to the visible square, rather than the wider subplot rectangle.
+drawnow;
+plot_position = getpixelposition(legend_axes,true);
+plot_side = min(plot_position(3:4));
+plot_right = plot_position(1) + (plot_position(3)+plot_side)/2;
+plot_top = plot_position(2) + (plot_position(4)+plot_side)/2;
+set(lgd,'Units','pixels');
+legend_position = get(lgd,'Position');
+legend_position(1:2) = [plot_right+12, plot_top-legend_position(4)];
+set(lgd,'Position',legend_position);
+
+%% Export the PNG with a small white margin around all plotted content
+if save_figure
+    png_file = fullfile(fileparts(mfilename('fullpath')), 'figure_4.png');
+    set(fig, 'PaperPositionMode', 'auto');
+    dpi = 300;
+    drawnow;
+    print(fig, png_file, '-dpng', sprintf('-r%d',dpi));
+
+    rgb = imread(png_file);
+    content = any(rgb < 255, 3);
+    rows = find(any(content, 2));
+    cols = find(any(content, 1));
+    if ~isempty(rows) && ~isempty(cols)
+        pad = 12;
+        r = max(1, rows(1)-pad):min(size(rgb, 1), rows(end)+pad);
+        c = max(1, cols(1)-pad):min(size(rgb, 2), cols(end)+pad);
+        pixels_per_metre = round(dpi / 0.0254);
+        imwrite(rgb(r,c,:), png_file, 'png', ...
+            'ResolutionUnit','meter','XResolution',pixels_per_metre);
+    end
 end

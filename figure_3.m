@@ -1,48 +1,25 @@
 function figure_3()
-% FIG_TRAP_CROP_DIFFERENCE_HEATMAPS
-% MATLAB R2016a compatible
+% Removal after 20 days across trap allocation and attraction
+% strength. Each panel subtracts the Gaussian cumulative removal percentage
+% from a linked Cauchy case. Red indicates greater removal for the Cauchy
+% case, blue indicates lower removal, and the contour marks estimated parity.
 %
-% Ecological consequences of related short- and long-distance
-% dispersal in the 1D trap-cropping model.
-%
-% Produces four heat maps showing:
-%
-%   Delta R = R_long - R_short
-%
-% where R is cumulative removal after 20 days, expressed as a
-% percentage of the initial population.
-%
-% Axes:
-%
-%   x = trap-crop fraction, 1-k
-%   y = beta_max, maximum attraction strength
-%
-% Panels:
-%
-%   (a) p = 0.1
-%   (b) p = 0.5
-%   (c) p* = 0.721
-%   (d) p = 0.9
-%
-% Positive values:
-%   greater removal under long-distance folded-Cauchy dispersal
-%
-% Negative values:
-%   greater removal under short-distance Gaussian dispersal
-%
-% No directional persistence is included.
-%
-% Within the trap crop, both movement processes switch to the
-% same unbiased arrested Gaussian movement.
-%
-% Outside the field, individuals resume the movement process
-% corresponding to their dispersal type.
+% The starting location determines the movement rule. Cash-crop insects
+% are biased toward the trap crop. Within the trap crop both cases use
+% the same reduced-scale, unbiased Gaussian walk. Outside the field
+% insects use their original kernel at full scale, with unbiased headings
+% and possible re-entry. A cash-to-trap crossing triggers an entry-removal
+% trial even if the step crosses the entire trap strip. Surviving endpoints
+% inside the trap crop receive a separate within-trap removal trial.
 
 clear;
 clc;
 close all;
 
-rng(1);
+rng(1);  % Reproducible random sequence within each figure.
+
+save_figure = true;
+
 
 %% ==========================================================
 % BASELINE PARAMETERS
@@ -386,7 +363,7 @@ cmap = ...
 % FIGURE
 % ===========================================================
 
-figure( ...
+fig = figure( ...
     'Color','w', ...
     'Position',[70 60 1100 850]);
 
@@ -576,6 +553,28 @@ for ip = 1:nP
         ax(ip), ...
         'Position',ax_positions{ip});
 
+end
+
+%% Export the PNG with a small white margin around all plotted content
+if save_figure
+    png_file = fullfile(fileparts(mfilename('fullpath')), 'figure_3.png');
+    set(fig, 'PaperPositionMode', 'auto');
+    dpi = 300;
+    drawnow;
+    print(fig, png_file, '-dpng', sprintf('-r%d',dpi));
+
+    rgb = imread(png_file);
+    content = any(rgb < 255, 3);
+    rows = find(any(content, 2));
+    cols = find(any(content, 1));
+    if ~isempty(rows) && ~isempty(cols)
+        pad = 12;
+        r = max(1, rows(1)-pad):min(size(rgb, 1), rows(end)+pad);
+        c = max(1, cols(1)-pad):min(size(rgb, 2), cols(end)+pad);
+        pixels_per_metre = round(dpi / 0.0254);
+        imwrite(rgb(r,c,:), png_file, 'png', ...
+            'ResolutionUnit','meter','XResolution',pixels_per_metre);
+    end
 end
 
 fprintf('Simulation complete.\n');

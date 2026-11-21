@@ -1,41 +1,25 @@
 function figure_8()
-% FIG7_PANEL_SIZE_OUTCOMES
-% MATLAB R2016a compatible
+% Capture, interception and edge leakage across panel sizes.
+% Capture is estimated separately at per-contact adhesion probabilities of
+% 0.1 and 0.5. The 0.5 batch also estimates interception (at least one
+% finite-panel contact) and edge leakage (a plane crossing outside the
+% panel before any contact). Both outcomes can occur on one trajectory.
 %
-% Quantitative comparison of short- and long-distance movement
-% in the 3D planar interception framework.
-%
-% Produces one figure with four panels:
-%
-%   (a) Capture (%) vs panel side length for pStick = 0.1
-%   (b) Capture (%) vs panel side length for pStick = 0.5
-%   (c) Encounter (%) vs panel side length
-%   (d) Edge-leakage (%) vs panel side length
-%
-% Short-distance movement:
-%   Chi(3) step lengths generated from 3D Gaussian movement
-%
-% Long-distance movement:
-%   folded-Cauchy step lengths
-%
-% Long-distance cases:
-%   p = 0.1
-%   p = 0.5
-%   p* = 0.650
-%   p = 0.9
-%
-% No directional persistence is included.
-%
-% All movement processes experience the same weak directional
-% bias towards a randomly assigned point on the panel.
-%
-% Parameters are consistent with Figures 6 and 7.
+% The Chi(3) scale is calibrated from nominal flight speed.
+% The folded-Cauchy model has no finite mean step length. Until the first
+% crossing of the panel plane, headings are biased toward an individually
+% assigned target on the square panel. Later ordinary headings are isotropic.
+% Capture simulations test the whole segment for panel contact before
+% checking endpoint escape. After failed adhesion, the trajectory resumes
+% from the contact point with a small offset and an outward heading.
 
 clear;
 clc;
 close all;
 
 rng(1);
+
+save_figure = true;
 
 %% ==========================================================
 % SIMULATION SIZE
@@ -61,22 +45,13 @@ meanStep = ...
 sigma = ...
     meanStep * sqrt(2*pi) / 4;
 
-maxSteps = 1000;    % 20 s total duration in this checking version
+maxSteps = 1000;    % 20 s maximum duration
 
 %% ==========================================================
 % DIRECTIONAL BIAS
 % ===========================================================
 
-% Same weak directional bias as Figures 6 and 7:
-%
-% E[cos(theta)] = coth(kappa_b) - 1/kappa_b
-
-meanCosine = 0.1;
-
-kappa_b = ...
-    fzero(@(k) ...
-    1./tanh(k) - 1./k - meanCosine, ...
-    [1e-6 100]);
+kappa_b = 0.3;  % Same pre-crossing vMF concentration as Figures 6 and 7.
 
 %% ==========================================================
 % LONG-DISTANCE MOVEMENT CASES
@@ -151,8 +126,8 @@ rEscape = 100;
 
 fprintf('\n');
 fprintf('Gaussian scale sigma = %.4f cm\n',sigma);
-fprintf('Mean directional cosine = %.3f\n',meanCosine);
-fprintf('Derived kappa_b = %.4f\n',kappa_b);
+fprintf('Mean directional cosine = %.3f\n',1/tanh(kappa_b)-1/kappa_b);
+fprintf('Directional concentration kappa_b = %.4f\n',kappa_b);
 fprintf('\n');
 
 for ip = 1:length(p_values)
@@ -408,18 +383,22 @@ lineWidth = ...
 % FIGURE
 % ===========================================================
 
-figure( ...
+fig = figure( ...
     'Color','w', ...
     'Position',[100 100 1000 800]);
 
-hLeg = ...
-    zeros(nCases,1);
+hLeg = gobjects(nCases,1);
+
+% Preserve the original 0-60% scale unless a regenerated curve exceeds it.
+max_percent = 100 * max([captureProb_01(:); captureProb_05(:); ...
+    encounterProb(:); leakProb(:)]);
+y_max = max(60,10*ceil(max_percent/10));
 
 %% ==========================================================
 % PANEL (a): CAPTURE, pStick = 0.1
 % ===========================================================
 
-subplot(2,2,1);
+ax_capture_01 = subplot(2,2,1);
 
 hold on;
 
@@ -455,11 +434,11 @@ title( ...
 
 xlim([0 30]);
 
-ylim([0 60]);
+ylim([0 y_max]);
 
 set(gca, ...
     'XTick',[0 5 10 15 20 25 30], ...
-    'YTick',[0 10 20 30 40 50 60], ...
+    'YTick',0:10:y_max, ...
     'FontName','Arial', ...
     'FontSize',14, ...
     'LineWidth',1.0, ...
@@ -510,11 +489,11 @@ title( ...
 
 xlim([0 30]);
 
-ylim([0 60]);
+ylim([0 y_max]);
 
 set(gca, ...
     'XTick',[0 5 10 15 20 25 30], ...
-    'YTick',[0 10 20 30 40 50 60], ...
+    'YTick',0:10:y_max, ...
     'FontName','Arial', ...
     'FontSize',14, ...
     'LineWidth',1.0, ...
@@ -564,11 +543,11 @@ title( ...
 
 xlim([0 30]);
 
-ylim([0 60]);
+ylim([0 y_max]);
 
 set(gca, ...
     'XTick',[0 5 10 15 20 25 30], ...
-    'YTick',[0 10 20 30 40 50 60], ...
+    'YTick',0:10:y_max, ...
     'FontName','Arial', ...
     'FontSize',14, ...
     'LineWidth',1.0, ...
@@ -618,11 +597,11 @@ title( ...
 
 xlim([0 30]);
 
-ylim([0 60]);
+ylim([0 y_max]);
 
 set(gca, ...
     'XTick',[0 5 10 15 20 25 30], ...
-    'YTick',[0 10 20 30 40 50 60], ...
+    'YTick',0:10:y_max, ...
     'FontName','Arial', ...
     'FontSize',14, ...
     'LineWidth',1.0, ...
@@ -645,6 +624,7 @@ legendEntries = ...
     '{\itp} = 0.9'};
 
 legend( ...
+    ax_capture_01, ...
     hLeg, ...
     legendEntries, ...
     'Interpreter','tex', ...
@@ -653,6 +633,28 @@ legend( ...
     'Location','best', ...
     'Box','off');
 hold off;
+
+%% Export the PNG with a small white margin around all plotted content
+if save_figure
+    png_file = fullfile(fileparts(mfilename('fullpath')), 'figure_8.png');
+    set(fig, 'PaperPositionMode', 'auto');
+    dpi = 300;
+    drawnow;
+    print(fig, png_file, '-dpng', sprintf('-r%d',dpi));
+
+    rgb = imread(png_file);
+    content = any(rgb < 255, 3);
+    rows = find(any(content, 2));
+    cols = find(any(content, 1));
+    if ~isempty(rows) && ~isempty(cols)
+        pad = 12;
+        r = max(1, rows(1)-pad):min(size(rgb, 1), rows(end)+pad);
+        c = max(1, cols(1)-pad):min(size(rgb, 2), cols(end)+pad);
+        pixels_per_metre = round(dpi / 0.0254);
+        imwrite(rgb(r,c,:), png_file, 'png', ...
+            'ResolutionUnit','meter','XResolution',pixels_per_metre);
+    end
+end
 
 fprintf('\nSimulation complete.\n');
 
@@ -900,42 +902,16 @@ for t = 1:maxSteps
 
         end
 
-        % Continue beyond the plane using the same procedure
-        % as the current Figures 6 and 7 implementation.
+        % Keep the original endpoint and disable bias for future steps.
+        attractionOn = false;
 
-        if useLevy
-
-            ell2 = ...
-                sample_folded_cauchy( ...
-                gamma);
-
-        else
-
-            ell2 = ...
-                sample_chi3( ...
-                sigma);
-
-        end
-
-        r_new2 = ...
-            cp + ...
-            ell2*v_new;
-
-        if r_new2(1) > xEscapePos || ...
-           r_new2(1) < xEscapeNeg || ...
-           norm(r_new2) > rEscape
-
+        if norm(r_new) > rEscape
             return;
-
         end
 
-        r = ...
-            r_new2;
-
-        attractionOn = ...
-            false;
-
+        r = r_new;
         continue;
+
 
     %% ------------------------------------------------------
     % ORDINARY MOVEMENT
