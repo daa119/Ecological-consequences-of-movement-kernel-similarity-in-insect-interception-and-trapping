@@ -107,6 +107,4 @@ Hawally, Kuwait
 
 Email: Ahmed.D@gust.edu.kw
 
-## License
 
-See the repository's `LICENSE` file for the applicable terms of use, once added.
