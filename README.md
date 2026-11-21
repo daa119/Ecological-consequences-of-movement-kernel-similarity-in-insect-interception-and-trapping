@@ -60,7 +60,6 @@ The optimal three-dimensional relationship is **p\* = 0.650**.
 - **Software** — MATLAB.
 - **Inputs** — Each file contains its required helper functions and runs without external datasets.
 - **Outputs** — Each file displays its figure and automatically saves a tightly cropped 300 dpi PNG beside the MATLAB file. Rerunning the file overwrites the corresponding PNG. Set `save_figure = false` to display the figure only.
-- **Randomness** — Figures 1–4 and 6–8 use `rng(1)`, and Figure 5 uses `rng(25)`. Results are stochastic and may depend on MATLAB version and execution environment.
 
 Download or clone the repository, set the MATLAB Current Folder to the repository directory, and run the file corresponding to the desired manuscript figure.
 
